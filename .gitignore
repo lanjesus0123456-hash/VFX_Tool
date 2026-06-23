@@ -1,0 +1,14 @@
+# 本地会话 / 工具状态（非项目内容）
+.claude/
+.opencode/
+opencode.json.applied_patches
+
+# OS / 编辑器临时文件
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.bak
+
+# Office 临时锁文件
+~$*

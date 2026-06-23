@@ -1,0 +1,12 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.0.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片程序化生成工具，支持6种Mesh类型：Plane/Ring/Cross/Sphere/Helix/Spline",
+  "keywords": ["vfx", "mesh", "generator", "editor"],
+  "author": {
+    "name": "Jesus"
+  }
+}

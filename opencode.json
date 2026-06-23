@@ -1,0 +1,48 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "l36-kbs": {
+      "type": "remote",
+      "url": "http://l36-kbs.leihuo.netease.com:9206/mcp",
+      "headers": {
+        "Authorization": "Bearer _cxNoton_8a9s1vk_jVFijtI4iRd4jiUCP99BJhw1qo"
+      }
+    },
+    "shuyuan-mcp": {
+      "type": "remote",
+      "url": "https://shuyuan-mcp.volc.shuyuan.leihuo.netease.com/mcp",
+      "headers": {
+        "Authorization": "Basic bWNwX3N5c19sYW5oYW8wMTpkMjhiZTNjZDU0Yzg0OTBl"
+      }
+    },
+    "zhurong-unity-mcp": {
+      "type": "remote",
+      "url": "http://localhost:25433"
+    },
+    "zhurong-figma": {
+      "type": "remote",
+      "url": "https://l36-ai-service.leihuo.netease.com/figma_mcp/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer _cxNoton_8a9s1vk_jVFijtI4iRd4jiUCP99BJhw1qo"
+      }
+    }
+  },
+  "agent": {
+    "explore": {
+      "permission": {
+        "l36-kbs*": "allow",
+        "shuyuan-mcp*": "allow",
+        "zhurong-unity-mcp": "allow",
+        "zhurong-figma*": "allow"
+      }
+    },
+    "general": {
+      "permission": {
+        "l36-kbs*": "allow",
+        "shuyuan-mcp*": "allow",
+        "zhurong-unity-mcp": "allow",
+        "zhurong-figma*": "allow"
+      }
+    }
+  }
+}
