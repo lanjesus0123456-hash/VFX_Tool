@@ -1,0 +1,26 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.6.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片生成工具，支持多Spline合并、Helix沿Y轮廓曲线、Custom不规则边缘与高度点跟随，并保留8种Mesh类型、UV2、Noise和FBX导出",
+  "keywords": [
+    "vfx",
+    "mesh",
+    "generator",
+    "editor",
+    "noise",
+    "tornado",
+    "polar",
+    "sculpt",
+    "spline",
+    "uv-tiling",
+    "multi-spline",
+    "helix-profile",
+    "irregular-edge"
+  ],
+  "author": {
+    "name": "Jesus"
+  }
+}

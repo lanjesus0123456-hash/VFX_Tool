@@ -1,0 +1,35 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.8.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片、破碎与模块化地刺工具：支持生长预览、最终模型与生长动画FBX导出",
+  "keywords": [
+    "vfx",
+    "mesh",
+    "generator",
+    "editor",
+    "noise",
+    "tornado",
+    "polar",
+    "sculpt",
+    "spline",
+    "uv-tiling",
+    "multi-spline",
+    "helix-profile",
+    "irregular-edge",
+    "fracture",
+    "shards",
+    "fbx",
+    "ground-spike",
+    "growth",
+    "animation"
+  ],
+  "author": {
+    "name": "Jesus"
+  },
+  "dependencies": {
+    "com.unity.formats.fbx": "2.0.3-preview.3"
+  }
+}

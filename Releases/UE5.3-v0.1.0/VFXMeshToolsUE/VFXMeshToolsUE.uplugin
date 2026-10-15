@@ -1,0 +1,14 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "VFX Mesh Tools UE",
+  "Description": "Procedural VFX meshes, fracture shards and growing ground spikes for UE 5.3.",
+  "Category": "VFX",
+  "CreatedBy": "VFX Tools",
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "EnabledByDefault": false,
+  "Plugins": [{ "Name": "ProceduralMeshComponent", "Enabled": true }],
+  "Modules": [{ "Name": "VFXMeshToolsUE", "Type": "Runtime", "LoadingPhase": "Default" }]
+}

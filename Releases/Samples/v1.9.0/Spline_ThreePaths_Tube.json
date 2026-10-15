@@ -1,0 +1,372 @@
+{
+    "format": "VFXMeshGenerator.SplinePreset",
+    "schemaVersion": 1,
+    "toolVersion": "1.9.0",
+    "paths": [
+        {
+            "points": [
+                {
+                    "x": -1.399999976158142,
+                    "y": 0.20000000298023225,
+                    "z": -0.30000001192092898
+                },
+                {
+                    "x": -1.0,
+                    "y": 1.0,
+                    "z": 0.5
+                },
+                {
+                    "x": 1.0,
+                    "y": -0.699999988079071,
+                    "z": 1.0
+                },
+                {
+                    "x": 3.0,
+                    "y": 1.0,
+                    "z": 2.0
+                }
+            ],
+            "flips": [
+                12.0,
+                -30.0,
+                48.0,
+                8.0
+            ]
+        },
+        {
+            "points": [
+                {
+                    "x": -1.0,
+                    "y": 2.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.0,
+                    "y": 3.0,
+                    "z": 2.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 2.5,
+                    "z": 3.0
+                }
+            ],
+            "flips": [
+                -40.0,
+                18.0,
+                55.0
+            ]
+        },
+        {
+            "points": [
+                {
+                    "x": -1.0,
+                    "y": 2.0,
+                    "z": 3.4000000953674318
+                },
+                {
+                    "x": 0.0,
+                    "y": 3.0,
+                    "z": 4.400000095367432
+                },
+                {
+                    "x": 1.0,
+                    "y": 2.5,
+                    "z": 5.400000095367432
+                }
+            ],
+            "flips": [
+                -40.0,
+                18.0,
+                55.0
+            ]
+        }
+    ],
+    "activePath": 2,
+    "previewPosition": {
+        "x": 7.0,
+        "y": 3.0,
+        "z": -4.0
+    },
+    "previewRotation": {
+        "x": 0.14984767138957978,
+        "y": 0.3608168065547943,
+        "z": -0.16538099944591523,
+        "w": 0.9055418372154236
+    },
+    "previewScale": {
+        "x": 1.2999999523162842,
+        "y": 0.699999988079071,
+        "z": 2.200000047683716
+    },
+    "previewUV2": true,
+    "noiseTexture": {
+        "guid": "",
+        "path": "",
+        "localId": 0
+    },
+    "previewTexture": {
+        "guid": "",
+        "path": "",
+        "localId": 0
+    },
+    "previewMaterial": {
+        "guid": "",
+        "path": "",
+        "localId": 0
+    },
+    "projectName": "样条复用测试",
+    "splineRows": 5,
+    "splineCols": 32,
+    "splineW": 1.2000000476837159,
+    "splineWMax": 12.0,
+    "splineCrossW": 0.699999988079071,
+    "splineCrossWMax": 9.0,
+    "splineShape": 2,
+    "splineTubeSides": 11,
+    "splineTwist": 77.0,
+    "splineWidthCurve": {
+        "preWrapMode": 2,
+        "postWrapMode": 4,
+        "keys": [
+            {
+                "time": 0.0,
+                "value": 0.30000001192092898,
+                "inTangent": 1.0,
+                "outTangent": 1.0,
+                "inWeight": 0.20000000298023225,
+                "outWeight": 0.3333333432674408,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 3,
+                "broken": true,
+                "leftMode": 0,
+                "rightMode": 0
+            },
+            {
+                "time": 0.25,
+                "value": 0.550000011920929,
+                "inTangent": 2.375,
+                "outTangent": 2.375,
+                "inWeight": 0.3333333432674408,
+                "outWeight": 0.3333333432674408,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            },
+            {
+                "time": 0.44999998807907107,
+                "value": 1.2999999523162842,
+                "inTangent": 0.8750001192092896,
+                "outTangent": 0.8750001192092896,
+                "inWeight": 0.3333333432674408,
+                "outWeight": 0.3333333432674408,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 3,
+                "broken": true,
+                "leftMode": 0,
+                "rightMode": 0
+            },
+            {
+                "time": 1.0,
+                "value": 0.20000000298023225,
+                "inTangent": -0.10000000149011612,
+                "outTangent": -0.30000001192092898,
+                "inWeight": 0.4000000059604645,
+                "outWeight": 0.30000001192092898,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 3,
+                "broken": true,
+                "leftMode": 0,
+                "rightMode": 0
+            }
+        ]
+    },
+    "splineSoftSelect": true,
+    "splineSoftRadius": 2.299999952316284,
+    "splineSoftCurve": {
+        "preWrapMode": 8,
+        "postWrapMode": 8,
+        "keys": [
+            {
+                "time": 0.0,
+                "value": 1.0,
+                "inTangent": 0.0,
+                "outTangent": -1.0,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            },
+            {
+                "time": 1.0,
+                "value": 0.0,
+                "inTangent": -1.0,
+                "outTangent": 0.0,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            }
+        ]
+    },
+    "pointTool": 1,
+    "pointSpace": 1,
+    "splinePositionSpace": 1,
+    "uvRotate": 38.0,
+    "uTiling": 2.299999952316284,
+    "vTiling": 0.699999988079071,
+    "flipU": true,
+    "flipV": true,
+    "uv2Enabled": true,
+    "uv2Rotate": -17.0,
+    "uv2UTiling": 0.6000000238418579,
+    "uv2VTiling": 3.200000047683716,
+    "flipU2": true,
+    "flipV2": true,
+    "uvTileMax": 23.0,
+    "flipNormals": true,
+    "pivotOffset": {
+        "x": 0.30000001192092898,
+        "y": -0.20000000298023225,
+        "z": 0.800000011920929
+    },
+    "edgeTransp": true,
+    "transpAdj1": 0.699999988079071,
+    "transpAdj2": 0.4000000059604645,
+    "heightGradient": true,
+    "heightTopColor": {
+        "r": 1.0,
+        "g": 0.20000000298023225,
+        "b": 0.4000000059604645,
+        "a": 0.699999988079071
+    },
+    "heightBotColor": {
+        "r": 0.20000000298023225,
+        "g": 0.699999988079071,
+        "b": 1.0,
+        "a": 0.30000001192092898
+    },
+    "heightCurve": {
+        "preWrapMode": 8,
+        "postWrapMode": 8,
+        "keys": [
+            {
+                "time": 0.0,
+                "value": 0.20000000298023225,
+                "inTangent": 0.0,
+                "outTangent": 0.0,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": true,
+                "weightedMode": 0,
+                "broken": true,
+                "leftMode": 0,
+                "rightMode": 3
+            },
+            {
+                "time": 1.0,
+                "value": 0.800000011920929,
+                "inTangent": 0.6000000238418579,
+                "outTangent": 0.0,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            }
+        ]
+    },
+    "noiseEnabled": false,
+    "noiseStrength": 0.17000000178813935,
+    "noiseTiling": {
+        "x": 1.7000000476837159,
+        "y": 2.299999952316284
+    },
+    "noiseOffset": {
+        "x": 0.10000000149011612,
+        "y": -0.4000000059604645
+    },
+    "noiseAxis": 4,
+    "noiseAxisCustom": {
+        "x": 0.20000000298023225,
+        "y": 0.800000011920929,
+        "z": 0.30000001192092898
+    },
+    "noiseMaskUVEnabled": true,
+    "noiseMaskUVFalloffU": 0.30000001192092898,
+    "noiseMaskUVFalloffV": 0.800000011920929,
+    "noiseMaskHeightEnabled": true,
+    "noiseMaskHeightCurve": {
+        "preWrapMode": 8,
+        "postWrapMode": 8,
+        "keys": [
+            {
+                "time": 0.0,
+                "value": 0.4000000059604645,
+                "inTangent": 0.0,
+                "outTangent": 0.4999999701976776,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            },
+            {
+                "time": 1.0,
+                "value": 0.8999999761581421,
+                "inTangent": 0.4999999701976776,
+                "outTangent": 0.0,
+                "inWeight": 0.0,
+                "outWeight": 0.0,
+                "inStepped": false,
+                "outStepped": false,
+                "weightedMode": 0,
+                "broken": false,
+                "leftMode": 0,
+                "rightMode": 0
+            }
+        ]
+    },
+    "showChecker": true,
+    "previewCullBack": true,
+    "uvPreviewSpeed": {
+        "x": 0.20000000298023225,
+        "y": 0.699999988079071
+    },
+    "uv2PreviewSpeed": {
+        "x": -0.10000000149011612,
+        "y": 0.4000000059604645
+    },
+    "uvPreviewTile": {
+        "x": 3.0,
+        "y": 2.0
+    },
+    "uv2PreviewTile": {
+        "x": 0.6000000238418579,
+        "y": 1.2999999523162842
+    },
+    "uvTilePreview": false,
+    "useCustomMaterial": false,
+    "showWireframe": false
+}

@@ -1,0 +1,12 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.5.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片程序化生成工具，支持8种Mesh类型：Plane/Ring/Cross/Sphere/Helix/Spline/GhostTrail/Custom，含Noise形变、龙卷风轮廓、极坐标UV、Custom边界起伏与立体雕刻、控制点移动/旋转/缩放（世界·本地）、UV平铺预览",
+  "keywords": ["vfx", "mesh", "generator", "editor", "noise", "tornado", "polar", "sculpt", "spline", "uv-tiling"],
+  "author": {
+    "name": "Jesus"
+  }
+}

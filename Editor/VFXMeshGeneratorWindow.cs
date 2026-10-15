@@ -44,9 +44,14 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private float    uv2VTiling   = 1f;
     private bool     flipU2       = false;   // UV2 U 方向翻转
     private bool     flipV2       = false;   // UV2 V 方向翻转
+    private float    uvTileMax    = 10f;      // U/V Tiling 滑条上限（可自定义）
     // 预览流动速度（仅用于 Scene 预览滚动动画，不烘焙进模型 UV）
     private Vector2  uvPreviewSpeed  = Vector2.zero;   // UV1 预览流速
     private Vector2  uv2PreviewSpeed = Vector2.zero;   // UV2 预览流速
+    // 预览平铺（仅 Scene 预览与面板缩略图，不烘焙进模型 UV）——与 Noise 的 Tiling 一样自由输入
+    private Vector2  uvPreviewTile   = Vector2.one;    // UV1 预览平铺
+    private Vector2  uv2PreviewTile  = Vector2.one;    // UV2 预览平铺
+    private bool     uvTilePreview   = true;           // 面板内显示平铺缩略图
     private Vector2  _uvScrollAccum  = Vector2.zero;   // 累计滚动偏移
     private double   _lastScrollTime = 0;
     private bool     previewCullBack = false;          // 预览时剔除背面（Noise 造成翻折时隐藏背面）
@@ -81,6 +86,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private float ringTiltX = 0f;    // 整体绕 X 轴倾斜角度（度）
     private float ringTiltZ = 0f;    // 整体绕 Z 轴倾斜角度（度）
     private bool  ringIsCross = false;
+    private float ringCrossW    = 1f;    // 十字面宽度倍数（1 = 与环面斜边等宽）
+    private float ringCrossWMax = 5f;    // 该滑条上限（可自定义）
     public enum RingUVMode { Rect, Circular, Polar }   // 矩形 / 圆形 / 极坐标
     private RingUVMode ringUVMode  = RingUVMode.Rect;       // UV1 模式
     private RingUVMode ringUVMode2 = RingUVMode.Circular;   // UV2 模式（独立，默认圆形让 UV2 有意义）
@@ -90,6 +97,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private float crossW     = 1f;
     private float crossH     = 1f;
     private int   crossCount = 2;
+    private float crossExtraW    = 1f;   // 第 2 片起（新增的十字面）宽度倍数
+    private float crossExtraWMax = 5f;   // 该滑条上限（可自定义）
 
     // ── Sphere ────────────────────────────────────────────────
     private float sphereR    = 1f;
@@ -107,6 +116,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private float          helixH        = 1f;
     private int            helixCount    = 1;
     private bool           helixIsCross  = false;
+    private float          helixCrossW    = 1f;   // 十字面宽度倍数（1 = 与主面等宽）
+    private float          helixCrossWMax = 5f;   // 该滑条上限（可自定义）
     private float          helixW        = 0.5f;
     private AnimationCurve helixCurve    = AnimationCurve.Linear(0, 1, 1, 1);
     private float          helixHeadTwist = 0f;
@@ -118,6 +129,9 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private int            splineRows        = 2;
     private int            splineCols        = 16;
     private float          splineW           = 0.5f;
+    private float          splineWMax        = 5f;    // 宽度滑条上限（可自定义，原先硬编码 5）
+    private float          splineCrossW      = 1f;    // 十字形态：第二片宽度倍数（1 = 与主片等宽）
+    private float          splineCrossWMax   = 5f;    // 该滑条上限（可自定义）
     public enum SplineShape { Strip, Cross, Tube }
     private SplineShape    splineShape       = SplineShape.Strip;
     static readonly string[] SplineShapeLabels = { "条带", "十字", "管状" };
@@ -142,6 +156,17 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private Vector2     boxSelectStart;
     private bool        hidePreview      = false;
 
+    // ── 控制点编辑工具（Spline / Custom 共用）─────────────────
+    public enum PointTool   { Move, Rotate, Scale }
+    public enum HandleSpace { World, Local }
+    static readonly string[] PointToolLabels   = { "移动", "旋转", "缩放" };
+    static readonly string[] HandleSpaceLabels = { "世界坐标", "本地坐标" };
+    private PointTool   pointTool  = PointTool.Move;
+    private HandleSpace pointSpace = HandleSpace.World;
+    private Quaternion  _ptRot     = Quaternion.identity;   // 旋转 Handle 累积姿态
+    private Vector3     _ptScale   = Vector3.one;           // 缩放 Handle 累积值
+    private int         _ptStateHash = 0;                   // 选集/工具/坐标系变化检测 → 复位 Handle
+
     // ── GhostTrail（刀光：按 timeline 采样武器运动）──────────────
     public enum TrailMode { SinglePoint, TwoPoints }      // 单点+固定长度 / 两点（上下边各一个标记）
     public enum TrailAxis { Up, Right, Forward }          // 单点模式下沿标记点的哪个本地轴拉宽
@@ -164,6 +189,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private float       trailSmoothMax  = 1f;              // 平滑强度滑条最大值（可自定义）
     private bool        trailSingleData = true;            // 采样数据是否为单点模式（宽度可实时重建）
     private bool        trailCross      = false;           // 十字面片：再生成一片绕中心线轴向旋转 90° 的带，组成十字截面
+    private float       trailCrossW     = 1f;              // 十字面宽度倍数（1 = 与主片等宽）
+    private float       trailCrossWMax  = 5f;              // 该滑条上限（可自定义）
     private int         trailSubsteps   = 10;              // 自动播放：每帧细分采样次数（子帧步进，降速采样，规避运动过快折线）
     private bool        trailAdvFoldout = false;           // 更多设置 折叠
     private bool        trailDirTried   = false;           // 自动检测 Director 是否已尝试
@@ -208,6 +235,14 @@ public class VFXMeshGeneratorWindow : EditorWindow
     private int           customSelectedHeightPoint = -1;
     private AnimationCurve customHeightFalloff = AnimationCurve.EaseInOut(0, 1, 1, 0);
     private bool          customHeightFoldout = true;
+    private float         customHeightMax       = 5f;    // 高度滑条上下限（±max，可自定义）
+    private float         customHeightRadiusMax = 10f;   // 影响半径滑条上限（可自定义）
+
+    // ── Custom 边界控制点高度（均值坐标插值）──
+    // 边界控制点的 Y 会通过 MVC（Mean Value Coordinates）平滑插值到面内每个顶点，
+    // 因此拖动边界点上下即整片跟着起伏，不再永远是一张平面。
+    private bool    customBoundaryHeight = true;   // 关闭 = 旧行为（边界 Y 被忽略，强制平面）
+    private float[] _mvcDx, _mvcDz, _mvcR, _mvcTan;   // MVC 计算复用的暂存数组
 
     // ── Noise 顶点偏移（全局，对所有面片类型生效）────────────────
     public enum NoiseAxis { Normal, X, Y, Z, Custom }
@@ -274,8 +309,9 @@ public class VFXMeshGeneratorWindow : EditorWindow
         _lastScrollTime = now;
 
         if (checkerMat == null) return;
-        // 按当前预览的 UV 通道取对应流速
+        // 按当前预览的 UV 通道取对应流速 / 预览平铺
         bool ch2 = uv2Enabled && checkerMat.GetFloat("_UVChannel") > 0.5f;
+        PushPreviewTile(ch2);
         Vector2 speed = ch2 ? uv2PreviewSpeed : uvPreviewSpeed;
         if (speed == Vector2.zero) return;
 
@@ -284,7 +320,26 @@ public class VFXMeshGeneratorWindow : EditorWindow
         _uvScrollAccum = new Vector2(Mathf.Repeat(_uvScrollAccum.x, 1f), Mathf.Repeat(_uvScrollAccum.y, 1f));
         checkerMat.SetVector("_Scroll", _uvScrollAccum);
         SceneView.RepaintAll();
+        if (uvFoldout && uvTilePreview) Repaint();   // 面板里的平铺缩略图跟着动
     }
+
+    // 把「预览平铺」写进预览材质（仅预览，不烘焙进模型 UV）
+    void PushPreviewTile(bool channel2)
+    {
+        if (checkerMat == null) return;
+        Vector2 tile = channel2 ? uv2PreviewTile : uvPreviewTile;
+        if (Mathf.Abs(tile.x) < 1e-4f) tile.x = 1e-4f;
+        if (Mathf.Abs(tile.y) < 1e-4f) tile.y = 1e-4f;
+        var cur = checkerMat.GetVector("_PreviewTile");
+        if (!Mathf.Approximately(cur.x, tile.x) || !Mathf.Approximately(cur.y, tile.y))
+        {
+            checkerMat.SetVector("_PreviewTile", new Vector4(tile.x, tile.y, 0f, 0f));
+            SceneView.RepaintAll();
+        }
+    }
+
+    // 预览通道当前是否为 UV2（面板缩略图与预览材质保持一致）
+    bool PreviewIsChannel2() => uv2Enabled && checkerMat != null && checkerMat.GetFloat("_UVChannel") > 0.5f;
 
     // ── GUI ───────────────────────────────────────────────────
     void OnGUI()
@@ -435,13 +490,14 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 VFXUVViewerWindow.Open();
 
             uvRotate = EditorGUILayout.Slider("UV Rotate", uvRotate, 0f, 360f);
-            uTiling  = EditorGUILayout.Slider("U Tiling",  uTiling,  0.1f, 10f);
-            vTiling  = EditorGUILayout.Slider("V Tiling",  vTiling,  0.1f, 10f);
+            uTiling  = SliderWithMax(new GUIContent("U Tiling",  "会烘焙进模型 UV。右侧 max 可自定义滑条上限"), uTiling, 0.01f, ref uvTileMax);
+            vTiling  = SliderWithMax(new GUIContent("V Tiling",  "会烘焙进模型 UV。右侧 max 可自定义滑条上限"), vTiling, 0.01f, ref uvTileMax);
             EditorGUILayout.BeginHorizontal();
             flipU = EditorGUILayout.ToggleLeft("翻转 U", flipU, GUILayout.Width(80));
             flipV = EditorGUILayout.ToggleLeft("翻转 V", flipV, GUILayout.Width(80));
             EditorGUILayout.EndHorizontal();
             uvPreviewSpeed = EditorGUILayout.Vector2Field(new GUIContent("预览流速 U/V", "仅在 Scene 预览里滚动 UV 观察流动方向，不会烘焙进模型"), uvPreviewSpeed);
+            uvPreviewTile  = EditorGUILayout.Vector2Field(new GUIContent("预览平铺 U/V", "仅预览：在 Scene 与下方缩略图里额外平铺贴图，用来试看密度；不会烘焙进模型 UV（与 Noise 的 UV 平铺一样自由输入，无上限）"), uvPreviewTile);
 
             // Ring：矩形 / 圆形 / 极坐标；Plane：矩形 / 极坐标（圆形对平面无意义，已移除）
             if (meshType == MeshType.Ring)
@@ -462,13 +518,14 @@ public class VFXMeshGeneratorWindow : EditorWindow
             if (uv2Enabled)
             {
                 uv2Rotate  = EditorGUILayout.Slider("UV2 Rotate", uv2Rotate, 0f, 360f);
-                uv2UTiling = EditorGUILayout.Slider("UV2 U Tiling", uv2UTiling, 0.1f, 10f);
-                uv2VTiling = EditorGUILayout.Slider("UV2 V Tiling", uv2VTiling, 0.1f, 10f);
+                uv2UTiling = SliderWithMax(new GUIContent("UV2 U Tiling", "会烘焙进模型 UV2。右侧 max 可自定义滑条上限"), uv2UTiling, 0.01f, ref uvTileMax);
+                uv2VTiling = SliderWithMax(new GUIContent("UV2 V Tiling", "会烘焙进模型 UV2。右侧 max 可自定义滑条上限"), uv2VTiling, 0.01f, ref uvTileMax);
                 EditorGUILayout.BeginHorizontal();
                 flipU2 = EditorGUILayout.ToggleLeft("翻转 U2", flipU2, GUILayout.Width(90));
                 flipV2 = EditorGUILayout.ToggleLeft("翻转 V2", flipV2, GUILayout.Width(90));
                 EditorGUILayout.EndHorizontal();
                 uv2PreviewSpeed = EditorGUILayout.Vector2Field(new GUIContent("UV2 预览流速 U/V", "仅预览滚动，不烘焙"), uv2PreviewSpeed);
+                uv2PreviewTile  = EditorGUILayout.Vector2Field(new GUIContent("UV2 预览平铺 U/V", "仅预览平铺，不烘焙"), uv2PreviewTile);
 
                 // UV2 独立的 Ring/Plane UV 模式
                 if (meshType == MeshType.Ring)
@@ -505,6 +562,11 @@ public class VFXMeshGeneratorWindow : EditorWindow
                     SceneView.RepaintAll();
                 }
             }
+
+            // UV Tiling 平铺预览（所有面片类型通用）
+            EditorGUILayout.Space(2);
+            uvTilePreview = EditorGUILayout.Toggle(new GUIContent("显示平铺预览", "按当前 Tiling × 预览平铺 铺贴预览贴图/棋盘格，直观看到平铺密度与流动方向"), uvTilePreview);
+            if (uvTilePreview) DrawUVTilePreview();
         }
 
         EditorGUILayout.Space(6);
@@ -525,6 +587,77 @@ public class VFXMeshGeneratorWindow : EditorWindow
         r.height = 1;
         EditorGUI.DrawRect(r, new Color(0.4f, 0.4f, 0.4f));
         GUILayout.Space(2);
+    }
+
+    // 滑条 + 右侧「max」输入框：上限随时可改，不再被硬编码卡死。
+    // 上限调小时会把当前值一起夹回范围内，避免出现滑条外的隐形数值。
+    static float SliderWithMax(GUIContent label, float value, float min, ref float max, float maxFloor = 0.01f)
+    {
+        max = Mathf.Max(maxFloor, Mathf.Max(min + maxFloor, max));
+        EditorGUILayout.BeginHorizontal();
+        value = EditorGUILayout.Slider(label, Mathf.Clamp(value, min, max), min, max);
+        GUILayout.Label("max", GUILayout.Width(26));
+        max = Mathf.Max(maxFloor, Mathf.Max(min + maxFloor, EditorGUILayout.FloatField(max, GUILayout.Width(46))));
+        EditorGUILayout.EndHorizontal();
+        return Mathf.Clamp(value, min, max);
+    }
+
+    static float SliderWithMax(string label, float value, float min, ref float max, float maxFloor = 0.01f)
+        => SliderWithMax(new GUIContent(label), value, min, ref max, maxFloor);
+
+    // UV Tiling 平铺预览：按「Tiling × 预览平铺」把预览贴图（或棋盘格）铺贴在缩略图里，
+    // 偏移跟随预览流速一起滚动 —— 不进 Scene 也能先看清平铺密度和流动方向。
+    void DrawUVTilePreview()
+    {
+        Texture tex = (uvPreviewTex != null) ? (Texture)uvPreviewTex : checkerTex;
+        if (tex == null) return;
+
+        bool ch2 = PreviewIsChannel2();
+        float tu = (ch2 ? uv2UTiling : uTiling) * (ch2 ? uv2PreviewTile.x : uvPreviewTile.x);
+        float tv = (ch2 ? uv2VTiling : vTiling) * (ch2 ? uv2PreviewTile.y : uvPreviewTile.y);
+        if (Mathf.Abs(tu) < 1e-4f) tu = 1e-4f;
+        if (Mathf.Abs(tv) < 1e-4f) tv = 1e-4f;
+
+        const float SZ = 148f;
+        Rect box = GUILayoutUtility.GetRect(SZ, SZ, GUILayout.ExpandWidth(false));
+        box.x = Mathf.Max(4f, (EditorGUIUtility.currentViewWidth - SZ) * 0.5f);
+        box.width = SZ; box.height = SZ;
+        EditorGUI.DrawRect(new Rect(box.x - 1, box.y - 1, SZ + 2, SZ + 2), new Color(0f, 0f, 0f, 0.6f));
+        // texcoord = 滚动偏移 + uv × 平铺，与预览 Shader 完全一致
+        GUI.DrawTextureWithTexCoords(box, tex, new Rect(_uvScrollAccum.x, _uvScrollAccum.y, tu, tv));
+
+        var info = $"{(ch2 ? "UV2" : "UV1")}  平铺 {tu:0.##} × {tv:0.##}"
+                 + (Mathf.Abs(ch2 ? uv2Rotate : uvRotate) > 0.01f ? "（缩略图不含 Rotate）" : "");
+        EditorGUILayout.LabelField(info, EditorStyles.centeredGreyMiniLabel);
+    }
+
+    // 控制点编辑工具条（Spline / Custom 共用）：移动/旋转/缩放 × 世界/本地坐标
+    void DrawPointToolBar()
+    {
+        float lw = Mathf.Max(60f, EditorGUIUtility.labelWidth - 4f);
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField(new GUIContent("控制点工具", "移动 / 旋转 / 缩放选中的控制点（绕选集质心）"), GUILayout.Width(lw));
+        pointTool = (PointTool)GUILayout.Toolbar((int)pointTool, PointToolLabels, EditorStyles.miniButton);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField(new GUIContent("坐标空间", "世界坐标 = Gizmo 轴向对齐世界轴；本地坐标 = 对齐预览模型自身朝向"), GUILayout.Width(lw));
+        pointSpace = (HandleSpace)GUILayout.Toolbar((int)pointSpace, HandleSpaceLabels, EditorStyles.miniButton);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    // 选中控制点的坐标数值编辑：本地坐标 + 世界坐标双向可改
+    void DrawPointCoordFields(List<Vector3> pts, int idx, string tag)
+    {
+        if (previewGO == null || pts == null || idx < 0 || idx >= pts.Count) return;
+        var t = previewGO.transform;
+
+        EditorGUI.BeginChangeCheck();
+        Vector3 lp = EditorGUILayout.Vector3Field($"{tag}{idx} 本地坐标", pts[idx]);
+        if (EditorGUI.EndChangeCheck()) { pts[idx] = lp; dirty = true; }
+
+        EditorGUI.BeginChangeCheck();
+        Vector3 wp = EditorGUILayout.Vector3Field($"{tag}{idx} 世界坐标", t.TransformPoint(pts[idx]));
+        if (EditorGUI.EndChangeCheck()) { pts[idx] = t.InverseTransformPoint(wp); dirty = true; }
     }
 
     void DrawMeshTypeParams()
@@ -558,6 +691,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 ringTiltX  = EditorGUILayout.Slider("倾斜 X",     ringTiltX,  -45f, 45f);
                 ringTiltZ  = EditorGUILayout.Slider("倾斜 Z",     ringTiltZ,  -45f, 45f);
                 ringIsCross = EditorGUILayout.Toggle("是否为十字片", ringIsCross);
+                if (ringIsCross)
+                    ringCrossW = SliderWithMax(new GUIContent("十字面宽度(×)",
+                        "新增的那片十字面的宽度倍数。1 = 与环面斜边等宽；右侧 max 可自定义滑条上限"),
+                        ringCrossW, 0f, ref ringCrossWMax);
                 break;
 
             case MeshType.Cross:
@@ -566,6 +703,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 crossW     = EditorGUILayout.Slider("宽度",     crossW,     0.01f, 10);
                 crossH     = EditorGUILayout.Slider("高度",     crossH,     0.01f, 10);
                 crossCount = EditorGUILayout.IntSlider("交叉片数", crossCount, 2, 6);
+                if (crossCount > 1)
+                    crossExtraW = SliderWithMax(new GUIContent("十字面宽度(×)",
+                        "第 2 片起（新增的十字面）的宽度倍数，1 = 与第 1 片等宽；右侧 max 可自定义滑条上限"),
+                        crossExtraW, 0f, ref crossExtraWMax);
                 break;
 
             case MeshType.Sphere:
@@ -589,6 +730,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 helixCount   = EditorGUILayout.IntSlider("螺旋线个数", helixCount,   1, 6);
                 helixIsCross = EditorGUILayout.Toggle("是否为十字片",   helixIsCross);
                 helixW       = EditorGUILayout.Slider("宽度",          helixW,       0.01f, 5);
+                if (helixIsCross)
+                    helixCrossW = SliderWithMax(new GUIContent("十字面宽度(×)",
+                        "新增的那片十字面的宽度倍数。1 = 与主面等宽；右侧 max 可自定义滑条上限"),
+                        helixCrossW, 0f, ref helixCrossWMax);
                 helixCurve   = EditorGUILayout.CurveField("细节调整",  helixCurve);
                 helixHeadTwist = EditorGUILayout.Slider("头部扭曲", helixHeadTwist, -360f, 360f);
                 helixTailTwist = EditorGUILayout.Slider("尾部扭曲", helixTailTwist, -360f, 360f);
@@ -602,16 +747,22 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 {
                     splineTubeSides = EditorGUILayout.IntSlider("截面边数", splineTubeSides, 3, 32);
                     splineCols      = EditorGUILayout.IntSlider("路径面数", splineCols, 4, 256);
-                    splineW         = EditorGUILayout.Slider("管半径(宽度)", splineW, 0.01f, 5);
+                    splineW         = SliderWithMax(new GUIContent("管半径(宽度)", "右侧 max 可自定义滑条上限，不再卡在 5"), splineW, 0.01f, ref splineWMax);
                 }
                 else
                 {
                     splineRows   = EditorGUILayout.IntSlider("横截面数", splineRows, 1, 20);
                     splineCols   = EditorGUILayout.IntSlider("路径面数", splineCols, 4, 256);
-                    splineW      = EditorGUILayout.Slider("宽度",      splineW,    0.01f, 5);
+                    splineW      = SliderWithMax(new GUIContent("宽度", "右侧 max 可自定义滑条上限，不再卡在 5"), splineW, 0.01f, ref splineWMax);
+                    if (splineShape == SplineShape.Cross)
+                        splineCrossW = SliderWithMax(new GUIContent("十字面宽度(×)",
+                            "十字形态里新增的第二片的宽度倍数。1 = 与主片等宽；右侧 max 可自定义滑条上限"),
+                            splineCrossW, 0f, ref splineCrossWMax);
                 }
                 splineTwist      = EditorGUILayout.Slider("扭曲",        splineTwist,   -360f, 360f);
                 splineWidthCurve = EditorGUILayout.CurveField("宽度曲线", splineWidthCurve);
+                EditorGUILayout.Space(2);
+                DrawPointToolBar();
                 splineSoftSelect = EditorGUILayout.Toggle("软选", splineSoftSelect);
                 if (splineSoftSelect)
                 {
@@ -620,7 +771,7 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 }
                 EditorGUILayout.Space(4);
 
-                // 选中点的翻转控制
+                // 选中点的翻转控制 + 坐标数值编辑（本地 / 世界）
                 SyncSplineFlips();
                 if (selectedSplinePoint >= 0 && selectedSplinePoint < splinePoints.Count)
                 {
@@ -628,9 +779,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
                     splinePointFlips[selectedSplinePoint] = EditorGUILayout.Slider(
                         $"P{selectedSplinePoint} 翻转", splinePointFlips[selectedSplinePoint], -180f, 180f);
                     if (EditorGUI.EndChangeCheck()) dirty = true;
+                    DrawPointCoordFields(splinePoints, selectedSplinePoint, "P");
                 }
 
-                EditorGUILayout.HelpBox("Scene 视图中拖动绿色控制点编辑 Spline 路径\n按住 Shift+左键 在最近的线段上插入新点\n空白处拖矩形框选多个控制点\n右键选中点可删除\n选中点后可调整该点翻转角度", MessageType.Info);
+                EditorGUILayout.HelpBox("Scene 视图中拖动绿色控制点编辑 Spline 路径\n按住 Shift+左键 在最近的线段上插入新点\n空白处拖矩形框选多个控制点\n右键选中点可删除\n选中点后可调整该点翻转角度\n控制点工具可切「移动/旋转/缩放」，坐标空间可切「世界/本地」", MessageType.Info);
                 EditorGUILayout.BeginHorizontal();
                 if (GUILayout.Button("+ 添加点"))
                 {
@@ -724,6 +876,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
 
                     // 十字面片：再生成一片绕中心线轴向旋转 90° 的带，组成十字截面（更有体积）
                     trailCross = EditorGUILayout.Toggle("十字面片", trailCross);
+                    if (trailCross)
+                        trailCrossW = SliderWithMax(new GUIContent("十字面宽度(×)",
+                            "新增的那片十字面的宽度倍数。1 = 与主片等宽；右侧 max 可自定义滑条上限"),
+                            trailCrossW, 0f, ref trailCrossWMax);
 
                     trailFps              = EditorGUILayout.FloatField("帧率(FPS)", trailFps);
                     trailExportWorldSpace = EditorGUILayout.Toggle("导出时保持世界位置", trailExportWorldSpace);
@@ -765,18 +921,26 @@ public class VFXMeshGeneratorWindow : EditorWindow
             case MeshType.Custom:
                 meshTypeFoldout = EditorGUILayout.Foldout(meshTypeFoldout, "Custom 自定义", true, EditorStyles.foldoutHeader);
                 if (!meshTypeFoldout) break;
-                EditorGUILayout.HelpBox("Scene 视图中拖动绿色控制点编辑多边形边界\n按住 Shift+左键 在最近的边上插入新点\n空白处拖矩形框选多个控制点\n至少 3 个点才能生成面", MessageType.Info);
-                customFillDensity = EditorGUILayout.IntSlider("填充密度", customFillDensity, 1, 32);
+                EditorGUILayout.HelpBox("Scene 视图中拖动绿色控制点编辑多边形边界\n按住 Shift+左键 在最近的边上插入新点\n空白处拖矩形框选多个控制点\n至少 3 个点才能生成面\n控制点沿 Y 上下拖动即整片跟着起伏（下方「边界高度插值」）", MessageType.Info);
+                customFillDensity = EditorGUILayout.IntSlider(new GUIContent("填充密度", "同时决定高度过渡的平滑度：密度越高，边界起伏的插值越顺"), customFillDensity, 1, 32);
+                customBoundaryHeight = EditorGUILayout.Toggle(new GUIContent("边界高度插值",
+                    "开启：边界控制点的 Y 用均值坐标插值到面内每个顶点，拖动控制点上下即把平面拉成起伏曲面。\n关闭：忽略边界点 Y，强制生成平面（旧行为）"), customBoundaryHeight);
                 EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("UV 流动设置", EditorStyles.miniBoldLabel);
                 customUVFlowDir   = (CustomUVFlowDir)EditorGUILayout.Popup("流动方向", (int)customUVFlowDir, CustomUVFlowDirLabels);
                 customFlipUV      = EditorGUILayout.Toggle("翻转 UV", customFlipUV);
                 EditorGUILayout.Space(4);
+                DrawPointToolBar();
                 customSoftSelect  = EditorGUILayout.Toggle("软选", customSoftSelect);
                 if (customSoftSelect)
                 {
                     customSoftRadius = EditorGUILayout.Slider("软选半径", customSoftRadius, 0.1f, 10f);
                     customSoftCurve  = EditorGUILayout.CurveField("软选衰减", customSoftCurve);
+                }
+                if (customSelectedPoint >= 0 && customSelectedPoint < customPoints.Count)
+                {
+                    EditorGUILayout.Space(2);
+                    DrawPointCoordFields(customPoints, customSelectedPoint, "P");
                 }
                 EditorGUILayout.Space(4);
                 EditorGUILayout.BeginHorizontal();
@@ -807,6 +971,12 @@ public class VFXMeshGeneratorWindow : EditorWindow
                     };
                     customSelectedPoint = -1;
                     customSelectedPoints.Clear();
+                    dirty = true;
+                }
+                if (GUILayout.Button("边界高度归零（压平）"))
+                {
+                    for (int i = 0; i < customPoints.Count; i++)
+                        customPoints[i] = new Vector3(customPoints[i].x, 0f, customPoints[i].z);
                     dirty = true;
                 }
                 EditorGUILayout.LabelField($"控制点: {customPoints.Count} 个" + (customSelectedPoints.Count > 0 ? $" | 选中: {customSelectedPoints.Count}" : ""), EditorStyles.miniLabel);
@@ -846,9 +1016,18 @@ public class VFXMeshGeneratorWindow : EditorWindow
 
                         if (customSelectedHeightPoint >= 0 && customSelectedHeightPoint < customHeightPoints.Count)
                         {
+                            // 两个列表一一对应，防御性补齐，避免历史数据不齐时越界
+                            while (customHeightRadii.Count < customHeightPoints.Count) customHeightRadii.Add(1.5f);
+                            while (customHeightRadii.Count > customHeightPoints.Count) customHeightRadii.RemoveAt(customHeightRadii.Count - 1);
+
+                            // 上限自适应：Scene 里把点拖得比上限还高时自动抬高上限，
+                            // 否则滑条会把值默默夹回 ±5，看起来就像「拖不动」
                             Vector3 hp = customHeightPoints[customSelectedHeightPoint];
-                            float newH = EditorGUILayout.Slider("高度", hp.y, -5f, 5f);
-                            float newR = EditorGUILayout.Slider("影响半径", customHeightRadii[customSelectedHeightPoint], 0.1f, 10f);
+                            customHeightMax = Mathf.Max(customHeightMax, Mathf.Abs(hp.y));
+                            customHeightRadiusMax = Mathf.Max(customHeightRadiusMax, customHeightRadii[customSelectedHeightPoint]);
+
+                            float newH = SliderWithMax(new GUIContent("高度", "右侧 max 可自定义上下限（±max）"), hp.y, -customHeightMax, ref customHeightMax);
+                            float newR = SliderWithMax(new GUIContent("影响半径", "右侧 max 可自定义滑条上限"), customHeightRadii[customSelectedHeightPoint], 0.01f, ref customHeightRadiusMax);
                             if (!Mathf.Approximately(newH, hp.y))
                             {
                                 customHeightPoints[customSelectedHeightPoint] = new Vector3(hp.x, newH, hp.z);
@@ -859,6 +1038,7 @@ public class VFXMeshGeneratorWindow : EditorWindow
                                 customHeightRadii[customSelectedHeightPoint] = newR;
                                 dirty = true;
                             }
+                            DrawPointCoordFields(customHeightPoints, customSelectedHeightPoint, "H");
                         }
                         EditorGUILayout.LabelField($"高度点: {customHeightPoints.Count} 个" + (customSelectedHeightPoint >= 0 ? $" | 选中 #{customSelectedHeightPoint}" : ""), EditorStyles.miniLabel);
                     }
@@ -1019,45 +1199,10 @@ public class VFXMeshGeneratorWindow : EditorWindow
             }
         }
 
-        // 多点整体移动 Handle（选集质心）+ 软选衰减
+        // 多点整体变换 Handle（选集质心）：移动 / 旋转 / 缩放 × 世界/本地坐标 + 软选衰减
         if (selectedPoints.Count > 0)
-        {
-            Vector3 centerLocal = Vector3.zero;
-            foreach (int idx in selectedPoints) centerLocal += splinePoints[idx];
-            centerLocal /= selectedPoints.Count;
-            Vector3 centerWorld = t.TransformPoint(centerLocal);
-
-            EditorGUI.BeginChangeCheck();
-            Vector3 newCenterWorld = Handles.DoPositionHandle(centerWorld, Quaternion.identity);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Vector3 deltaLocal = t.InverseTransformPoint(newCenterWorld) - centerLocal;
-
-                // 软选：先按移动前的位置算未选中点的衰减权重
-                if (splineSoftSelect && deltaLocal.sqrMagnitude > 0f)
-                {
-                    for (int j = 0; j < splinePoints.Count; j++)
-                    {
-                        if (selectedPoints.Contains(j)) continue;
-                        float dMin = float.MaxValue;
-                        foreach (int idx in selectedPoints)
-                            dMin = Mathf.Min(dMin, Vector3.Distance(splinePoints[j], splinePoints[idx]));
-                        if (dMin < splineSoftRadius)
-                        {
-                            float w = Mathf.Clamp01(splineSoftCurve.Evaluate(dMin / splineSoftRadius));
-                            splinePoints[j] += deltaLocal * w;
-                        }
-                    }
-                }
-
-                // 选中点全量移动
-                foreach (int idx in selectedPoints)
-                    splinePoints[idx] += deltaLocal;
-
-                dirty = true;
-                Repaint();
-            }
-        }
+            DoPointsTransformHandle(t, splinePoints, selectedPoints,
+                                    splineSoftSelect, splineSoftRadius, splineSoftCurve);
 
         // 绘制样条曲线（用 Catmull-Rom 采样）
         Handles.color = new Color(0.3f, 1f, 0.3f, 0.8f);
@@ -1226,6 +1371,7 @@ public class VFXMeshGeneratorWindow : EditorWindow
             { hideFlags = HideFlags.HideAndDontSave };
         checkerMat.SetTexture("_MainTex", checkerTex);
         checkerMat.SetFloat("_Cull", previewCullBack ? 2f : 0f);
+        checkerMat.SetVector("_PreviewTile", new Vector4(uvPreviewTile.x, uvPreviewTile.y, 0f, 0f));
 
         // 顶点色材质：内置 Shader 保证兼容性
         vertColorMat = new Material(CreateVertColorShader())
@@ -1544,8 +1690,14 @@ public class VFXMeshGeneratorWindow : EditorWindow
         vTiling      = 1f;
         flipU        = false; flipV = false;
         uv2Enabled = false; uv2Rotate = 0f; uv2UTiling = 1f; uv2VTiling = 1f; flipU2 = false; flipV2 = false;
+        uvTileMax = 10f;
         uvPreviewSpeed = Vector2.zero; uv2PreviewSpeed = Vector2.zero; _uvScrollAccum = Vector2.zero;
-        if (checkerMat != null) checkerMat.SetVector("_Scroll", Vector4.zero);
+        uvPreviewTile = Vector2.one; uv2PreviewTile = Vector2.one; uvTilePreview = true;
+        if (checkerMat != null)
+        {
+            checkerMat.SetVector("_Scroll", Vector4.zero);
+            checkerMat.SetVector("_PreviewTile", new Vector4(1f, 1f, 0f, 0f));
+        }
         flipNormals  = false;
         pivotOffset  = Vector3.zero;
 
@@ -1559,13 +1711,17 @@ public class VFXMeshGeneratorWindow : EditorWindow
         ringHeightCurve = AnimationCurve.Linear(0f, 1f, 1f, 1f);
         ringTiltX = 0f; ringTiltZ = 0f;
         ringUVMode = RingUVMode.Rect; ringUVMode2 = RingUVMode.Circular;
+        ringCrossW = 1f; ringCrossWMax = 5f;
         crossW = 1f; crossH = 1f; crossCount = 2;
+        crossExtraW = 1f; crossExtraWMax = 5f;
         sphereR = 1f; sphereRows = 13; sphereCols = 24; sphereStyle = SphereStyle.Right;
         helixRows = 20; helixCols = 5; helixTopR = 1f; helixBotR = 0.1f;
         helixLoops = 1; helixH = 1f; helixCount = 1; helixIsCross = false;
         helixW = 0.5f; helixCurve = AnimationCurve.Linear(0, 1, 1, 1);
+        helixCrossW = 1f; helixCrossWMax = 5f;
         helixHeadTwist = 0f; helixTailTwist = 0f;
-        splineRows = 2; splineCols = 16; splineW = 0.5f;
+        splineRows = 2; splineCols = 16; splineW = 0.5f; splineWMax = 5f;
+        splineCrossW = 1f; splineCrossWMax = 5f;
         splineShape = SplineShape.Strip; splineTubeSides = 8;
         splineTwist = 0f; splineWidthCurve = AnimationCurve.Linear(0, 1, 1, 1);
         splinePoints = new List<Vector3> {
@@ -1579,6 +1735,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
         splineSoftCurve = AnimationCurve.EaseInOut(0, 1, 1, 0);
         isBoxSelecting = false;
         hidePreview = false;
+        pointTool = PointTool.Move; pointSpace = HandleSpace.World;
+        _ptRot = Quaternion.identity; _ptScale = Vector3.one; _ptStateHash = 0;
 
         customPoints = new List<Vector3>
         {
@@ -1594,6 +1752,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
         customHeightEnabled = false; customHeightPoints.Clear(); customHeightRadii.Clear();
         customSelectedHeightPoint = -1; customHeightFoldout = true;
         customHeightFalloff = AnimationCurve.EaseInOut(0, 1, 1, 0);
+        customHeightMax = 5f; customHeightRadiusMax = 10f;
+        customBoundaryHeight = true;
 
         noiseEnabled = false; noiseTex = null; noiseStrength = 0.1f;
         noiseTiling = Vector2.one; noiseOffset = Vector2.zero;
@@ -1610,6 +1770,7 @@ public class VFXMeshGeneratorWindow : EditorWindow
         trailExportWorldSpace = false;
         trailResample = false; trailSegments = 30; trailWidthSeg = 1;
         trailSmooth = false; trailSmoothStrength = 0.5f; trailSmoothMax = 1f; trailSingleData = true; trailCross = false; trailSubsteps = 10;
+        trailCrossW = 1f; trailCrossWMax = 5f;
         if (trailRecording) StopTrailRecord();
         trailTop.Clear(); trailBot.Clear();
 
@@ -2126,8 +2287,9 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 tan = tan.sqrMagnitude > 1e-10f ? tan.normalized : Vector3.forward;
                 Vector3 perp = Vector3.Cross(tan, wu);             // 垂直于宽度与切线 → 十字另一片方向
                 perp = perp.sqrMagnitude > 1e-10f ? perp.normalized : wu;
-                ct.Add(mid + perp * (w * 0.5f));
-                cb.Add(mid - perp * (w * 0.5f));
+                float hw = w * 0.5f * trailCrossW;                 // trailCrossW = 十字面宽度倍数
+                ct.Add(mid + perp * hw);
+                cb.Add(mid - perp * hw);
             }
             EmitTrailRibbon(ct, cb, n, wseg, c, verts, uvs, tris);
         }
@@ -2240,13 +2402,16 @@ public class VFXMeshGeneratorWindow : EditorWindow
         // ── 5. 焊接单元交界重合顶点（消除法线断裂，Noise/高度形变才不会开裂）──
         WeldVertsXZ(verts, tris);
 
-        // ── 6. 高度控制点形变（可选，把平面雕成立体面）──
+        // ── 6. 边界控制点高度插值（拖动边界点 Y → 整片跟着起伏，不再恒为平面）──
+        ApplyCustomBoundaryHeight(verts);
+
+        // ── 7. 高度控制点形变（可选，在边界高度之上继续雕刻）──
         ApplyCustomHeight(verts);
 
-        // ── 7. UV 流动映射（仅用 XZ 投影，不受高度影响）──
+        // ── 8. UV 流动映射（仅用 XZ 投影，不受高度影响）──
         ComputeCustomUV(verts, uvs, t);
 
-        // ── 8. 极坐标接缝修复：跨 ±180° 的三角形会把整张贴图挤进一条缝，
+        // ── 9. 极坐标接缝修复：跨 ±180° 的三角形会把整张贴图挤进一条缝，
         //      把低 U 侧顶点复制一份并 +1，使三角形 U 连续，接缝收窄为一条线。
         if (customUVFlowDir == CustomUVFlowDir.Polar)
             FixPolarSeam(verts, uvs, tris);
@@ -2419,6 +2584,83 @@ public class VFXMeshGeneratorWindow : EditorWindow
             verts[i] = v;
         }
     }
+
+    // ── 边界控制点高度（把边界的 Y 插值进整片）────────────────────
+    // 三角剖分在 XZ 平面进行，产出的顶点 y 恒为 0；若不做这一步，边界控制点上下拖动
+    // 只会改动线框、生成的面片永远是一张平面。这里用均值坐标（Mean Value Coordinates）
+    // 把各边界点的 Y 平滑插值到面内每个顶点：
+    //   · 顶点落在某个边界点上 → 直接取该点高度
+    //   · 顶点落在某条边界边上 → 沿边线性插值（裁剪产生的边缘点都走这一支，故边缘严丝合缝）
+    //   · 顶点在面内         → 按 MVC 权重混合所有边界点高度（凹多边形同样成立）
+    bool CustomBoundaryHasHeight()
+    {
+        if (!customBoundaryHeight || customPoints.Count < 3) return false;
+        for (int i = 0; i < customPoints.Count; i++)
+            if (Mathf.Abs(customPoints[i].y) > 1e-6f) return true;
+        return false;   // 边界全平 → 跳过计算，与旧行为完全一致
+    }
+
+    void ApplyCustomBoundaryHeight(List<Vector3> verts)
+    {
+        if (!CustomBoundaryHasHeight()) return;
+        for (int i = 0; i < verts.Count; i++)
+        {
+            Vector3 v = verts[i];
+            v.y += EvalCustomBoundaryY(v.x, v.z);
+            verts[i] = v;
+        }
+    }
+
+    // 单点求值：返回 (x,z) 处由边界控制点 Y 插值出的高度
+    float EvalCustomBoundaryY(float x, float z)
+    {
+        int n = customPoints.Count;
+        if (n < 3) return 0f;
+        if (_mvcR == null || _mvcR.Length < n)
+        {
+            _mvcDx  = new float[n];
+            _mvcDz  = new float[n];
+            _mvcR   = new float[n];
+            _mvcTan = new float[n];
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            _mvcDx[i] = customPoints[i].x - x;
+            _mvcDz[i] = customPoints[i].z - z;
+            _mvcR[i]  = Mathf.Sqrt(_mvcDx[i] * _mvcDx[i] + _mvcDz[i] * _mvcDz[i]);
+            if (_mvcR[i] < 1e-6f) return customPoints[i].y;      // 正好在某个边界点上
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            int j = (i + 1) % n;
+            float cross = _mvcDx[i] * _mvcDz[j] - _mvcDz[i] * _mvcDx[j];
+            float dot   = _mvcDx[i] * _mvcDx[j] + _mvcDz[i] * _mvcDz[j];
+            float rr    = _mvcR[i] * _mvcR[j];
+
+            // 落在边 i→j 上（共线且夹在两端之间）：MVC 在边上退化，改沿边线性插值
+            if (Mathf.Abs(cross) <= 1e-6f * Mathf.Max(rr, 1e-6f) && dot < 0f)
+                return Mathf.Lerp(customPoints[i].y, customPoints[j].y, _mvcR[i] / (_mvcR[i] + _mvcR[j]));
+
+            // tan(α/2) = (1 - cosα) / sinα，其中 cosα = dot/rr、sinα = cross/rr
+            _mvcTan[i] = (Mathf.Abs(cross) > 1e-12f) ? (rr - dot) / cross : 0f;
+        }
+
+        float wSum = 0f, acc = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            int im = (i - 1 + n) % n;
+            float w = (_mvcTan[im] + _mvcTan[i]) / _mvcR[i];
+            wSum += w;
+            acc  += w * customPoints[i].y;
+        }
+        return (Mathf.Abs(wSum) > 1e-9f) ? acc / wSum : 0f;
+    }
+
+    // Gizmo 用：边界高度关闭 / 全平时返回 0，避免白算一遍 MVC
+    float EvalCustomBoundaryYSafe(float x, float z)
+        => CustomBoundaryHasHeight() ? EvalCustomBoundaryY(x, z) : 0f;
 
     // Sutherland-Hodgman 多边形裁切：用 clipPoly（CCW）裁切 subjectPoly
     // 返回裁切后的多边形顶点列表（CCW，可能是 3~8 边）
@@ -2750,7 +2992,7 @@ public class VFXMeshGeneratorWindow : EditorWindow
                     if (crossDir.sqrMagnitude < 0.001f)
                         crossDir = Vector3.Cross(tangent, Vector3.up).normalized;
 
-                    float offset = (t * 2f - 1f) * halfLen;
+                    float offset = (t * 2f - 1f) * halfLen * ringCrossW;   // ringCrossW = 十字面宽度倍数
                     verts.Add(center + crossDir * offset);
                     uvs.Add(new Vector2(ct, t));
                 }
@@ -2787,7 +3029,9 @@ public class VFXMeshGeneratorWindow : EditorWindow
         for (int i = 0; i < crossCount; i++)
         {
             float a     = i * step;
-            var   right = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * crossW * 0.5f;
+            // 第 2 片起套用「十字面宽度倍数」，只影响新增的那些片
+            float wMul  = (i == 0) ? 1f : crossExtraW;
+            var   right = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * crossW * wMul * 0.5f;
             var   up    = Vector3.up * crossH * 0.5f;
             int   b     = verts.Count;
 
@@ -2913,7 +3157,8 @@ public class VFXMeshGeneratorWindow : EditorWindow
                 // 十字片
                 if (helixIsCross)
                 {
-                    var crossBit = Vector3.Cross(tangent, bitang.normalized).normalized * width;
+                    // helixCrossW = 十字面宽度倍数（1 = 与主面等宽）
+                    var crossBit = Vector3.Cross(tangent, bitang.normalized).normalized * width * helixCrossW;
                     for (int c = 0; c <= helixCols; c++)
                     {
                         float ct = (float)c / helixCols;
@@ -3076,15 +3321,19 @@ public class VFXMeshGeneratorWindow : EditorWindow
                     right = twistRot * right;
                 }
 
-                // 十字片第二 pass
+                // 十字片第二 pass（宽度可独立倍数缩放）
                 Vector3 dir = right;
+                float   wp  = w;
                 if (p == 1)
+                {
                     dir = Vector3.Cross(right, tangents[i]).normalized;
+                    wp  = w * splineCrossW;
+                }
 
                 for (int r = 0; r <= splineRows; r++)
                 {
                     float rt = (float)r / splineRows;
-                    verts.Add(samples[i] + dir * w * (rt * 2f - 1f));
+                    verts.Add(samples[i] + dir * wp * (rt * 2f - 1f));
                     uvs.Add(new Vector2(rt, t));
                 }
             }
@@ -3407,6 +3656,7 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
         _UsePreviewTex (""Use Preview Tex"", Float) = 0
         _UVChannel (""UV Channel"", Float) = 0
         _Scroll (""Scroll"", Vector) = (0,0,0,0)
+        _PreviewTile (""Preview Tile"", Vector) = (1,1,0,0)
         _Cull (""Cull"", Float) = 0
     }
     SubShader {
@@ -3424,9 +3674,10 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
             float _UsePreviewTex;
             float _UVChannel;
             float4 _Scroll;
+            float4 _PreviewTile;
             struct appdata { float4 vertex : POSITION; float2 uv0 : TEXCOORD0; float2 uv1 : TEXCOORD1; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
-            v2f vert(appdata v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = ((_UVChannel > 0.5) ? v.uv1 : v.uv0) + _Scroll.xy; return o; }
+            v2f vert(appdata v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = ((_UVChannel > 0.5) ? v.uv1 : v.uv0) * _PreviewTile.xy + _Scroll.xy; return o; }
             fixed4 frag(v2f i, fixed facing : VFACE) : SV_Target {
                 // 有预览贴图时正反面都显示贴图（含Alpha）
                 if (_UsePreviewTex > 0.5) return tex2D(_MainTex, i.uv);
@@ -3529,43 +3780,10 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
             }
         }
 
-        // 多点整体移动 Handle + 软选（选中高度点时让位给高度 Handle）
+        // 多点整体变换 Handle（移动/旋转/缩放 × 世界/本地）+ 软选（选中高度点时让位给高度 Handle）
         if (customSelectedPoints.Count > 0 && !(customHeightEnabled && customSelectedHeightPoint >= 0))
-        {
-            Vector3 centerLocal = Vector3.zero;
-            foreach (int idx in customSelectedPoints) centerLocal += customPoints[idx];
-            centerLocal /= customSelectedPoints.Count;
-            Vector3 centerWorld = t.TransformPoint(centerLocal);
-
-            EditorGUI.BeginChangeCheck();
-            Vector3 newCenterWorld = Handles.DoPositionHandle(centerWorld, Quaternion.identity);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Vector3 deltaLocal = t.InverseTransformPoint(newCenterWorld) - centerLocal;
-
-                if (customSoftSelect && deltaLocal.sqrMagnitude > 0f)
-                {
-                    for (int j = 0; j < customPoints.Count; j++)
-                    {
-                        if (customSelectedPoints.Contains(j)) continue;
-                        float dMin = float.MaxValue;
-                        foreach (int idx in customSelectedPoints)
-                            dMin = Mathf.Min(dMin, Vector3.Distance(customPoints[j], customPoints[idx]));
-                        if (dMin < customSoftRadius)
-                        {
-                            float w = Mathf.Clamp01(customSoftCurve.Evaluate(dMin / customSoftRadius));
-                            customPoints[j] += deltaLocal * w;
-                        }
-                    }
-                }
-
-                foreach (int idx in customSelectedPoints)
-                    customPoints[idx] += deltaLocal;
-
-                dirty = true;
-                Repaint();
-            }
-        }
+            DoPointsTransformHandle(t, customPoints, customSelectedPoints,
+                                    customSoftSelect, customSoftRadius, customSoftCurve);
 
         // Shift+左键 在最近的边上插入新点
         if (Event.current.shift && Event.current.type == EventType.MouseDown && Event.current.button == 0)
@@ -3580,22 +3798,35 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
 
                 int bestEdge = -1;
                 float bestDist = 0.3f;
+                float bestT = 0f;
                 for (int i = 0; i < customPoints.Count; i++)
                 {
                     Vector3 a = customPoints[i];
                     Vector3 b = customPoints[(i + 1) % customPoints.Count];
-                    Vector3 closest = ClosestPointOnSegment(hitLocal, a, b);
-                    float d = Vector3.Distance(hitLocal, closest);
+                    // 只在 XZ 平面比距离：边界点若已被抬升，3D 距离会把这条边推远、导致插不进点
+                    Vector2 a2 = new Vector2(a.x, a.z), b2 = new Vector2(b.x, b.z);
+                    Vector2 h2 = new Vector2(hitLocal.x, hitLocal.z);
+                    Vector2 ab = b2 - a2;
+                    float tt = (ab.sqrMagnitude > 1e-8f) ? Mathf.Clamp01(Vector2.Dot(h2 - a2, ab) / ab.sqrMagnitude) : 0f;
+                    float d  = Vector2.Distance(h2, a2 + ab * tt);
                     if (d < bestDist)
                     {
                         bestDist = d;
                         bestEdge = i;
+                        bestT    = tt;
                     }
                 }
 
                 if (bestEdge >= 0)
                 {
+                    // 新点的 Y 沿该边插值，而不是被压回 y=0 平面（否则每插一点就在面上戳一个坑）
+                    Vector3 ea = customPoints[bestEdge];
+                    Vector3 eb = customPoints[(bestEdge + 1) % customPoints.Count];
+                    hitLocal.y = Mathf.Lerp(ea.y, eb.y, bestT);
                     customPoints.Insert(bestEdge + 1, hitLocal);
+                    customSelectedPoint = bestEdge + 1;
+                    customSelectedPoints.Clear();
+                    customSelectedPoints.Add(customSelectedPoint);
                     Event.current.Use();
                     GUIUtility.hotControl = 0;
                     dirty = true;
@@ -3645,6 +3876,8 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
                     if (boxRect.Contains(gp))
                         customSelectedPoints.Add(i);
                 }
+                customSelectedPoint = customSelectedPoints.Count > 0
+                                    ? customSelectedPoints[customSelectedPoints.Count - 1] : -1;
                 customIsBoxSelecting = false;
                 GUIUtility.hotControl = 0;
                 Event.current.Use();
@@ -3661,6 +3894,131 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
         return a + ab * t;
     }
 
+    // ── 控制点整体变换 Handle（Spline / Custom 共用）───────────────
+    // 移动 / 旋转 / 缩放三种工具，绕选集质心操作；坐标空间可选世界或本地（对齐预览模型朝向）。
+    // 软选未选中点按距离衰减跟随：移动按权重缩放位移、旋转按权重 Slerp 角度、缩放按权重靠向 1。
+    bool DoPointsTransformHandle(Transform t, List<Vector3> pts, List<int> sel,
+                                 bool soft, float softRadius, AnimationCurve softCurve)
+    {
+        if (t == null || pts == null || sel == null || sel.Count == 0) return false;
+
+        Vector3 centerLocal = Vector3.zero;
+        int valid = 0;
+        foreach (int i in sel)
+        {
+            if (i < 0 || i >= pts.Count) continue;
+            centerLocal += pts[i];
+            valid++;
+        }
+        if (valid == 0) return false;
+        centerLocal /= valid;
+
+        Vector3    centerWorld = t.TransformPoint(centerLocal);
+        Quaternion baseRot     = (pointSpace == HandleSpace.Local) ? t.rotation : Quaternion.identity;
+
+        // 选集 / 工具 / 坐标系变化时复位 Handle 累积姿态，避免带着上次的角度继续转
+        int hash = pts.Count * 31 + sel.Count;
+        foreach (int i in sel) hash = hash * 31 + i;
+        hash = hash * 13 + (int)pointSpace * 3 + (int)pointTool;
+        if (hash != _ptStateHash) { _ptStateHash = hash; _ptRot = baseRot; _ptScale = Vector3.one; }
+
+        Vector3    moveLocal = Vector3.zero;      // kind 0
+        Quaternion rotLocal  = Quaternion.identity; // kind 1
+        Vector3    scaleFac  = Vector3.one;       // kind 2
+        int kind = -1;
+
+        if (pointTool == PointTool.Rotate)
+        {
+            EditorGUI.BeginChangeCheck();
+            Quaternion nr = Handles.DoRotationHandle(_ptRot, centerWorld);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Quaternion dq = nr * Quaternion.Inverse(_ptRot);       // 世界空间增量
+                _ptRot   = nr;
+                rotLocal = Quaternion.Inverse(t.rotation) * dq * t.rotation;   // → 局部空间
+                kind = 1;
+            }
+        }
+        else if (pointTool == PointTool.Scale)
+        {
+            EditorGUI.BeginChangeCheck();
+            Vector3 ns = Handles.DoScaleHandle(_ptScale, centerWorld, baseRot,
+                                               HandleUtility.GetHandleSize(centerWorld));
+            if (EditorGUI.EndChangeCheck())
+            {
+                scaleFac = new Vector3(SafeRatio(ns.x, _ptScale.x),
+                                       SafeRatio(ns.y, _ptScale.y),
+                                       SafeRatio(ns.z, _ptScale.z));
+                _ptScale = ns;
+                kind = 2;
+            }
+        }
+        else
+        {
+            EditorGUI.BeginChangeCheck();
+            Vector3 nw = Handles.DoPositionHandle(centerWorld, baseRot);
+            if (EditorGUI.EndChangeCheck())
+            {
+                moveLocal = t.InverseTransformPoint(nw) - centerLocal;
+                kind = 0;
+            }
+        }
+        // 世界坐标模式：一次拖拽结束后把 Gizmo 复位（旋转回世界轴向、缩放回 1），
+        // 这样下一次拖拽仍从世界轴/1.0 起步；本地模式保留跟随物体朝向的姿态。
+        if (Event.current.type == EventType.MouseUp)
+        {
+            if (pointSpace == HandleSpace.World) _ptRot = Quaternion.identity;
+            _ptScale = Vector3.one;
+        }
+        if (kind < 0) return false;
+
+        Quaternion frameLocal = Quaternion.Inverse(t.rotation) * baseRot;   // Handle 坐标系 → 局部空间
+        float radius = Mathf.Max(1e-4f, softRadius);
+
+        for (int j = 0; j < pts.Count; j++)
+        {
+            float w = 1f;
+            if (!sel.Contains(j))
+            {
+                if (!soft) continue;
+                float dMin = float.MaxValue;
+                foreach (int idx in sel)
+                {
+                    if (idx < 0 || idx >= pts.Count) continue;
+                    dMin = Mathf.Min(dMin, Vector3.Distance(pts[j], pts[idx]));
+                }
+                if (dMin >= radius) continue;
+                w = Mathf.Clamp01(softCurve != null ? softCurve.Evaluate(dMin / radius) : 0f);
+                if (w <= 1e-4f) continue;
+            }
+
+            Vector3 p = pts[j];
+            if (kind == 0)
+            {
+                p += moveLocal * w;
+            }
+            else if (kind == 1)
+            {
+                Quaternion q = (w >= 0.999f) ? rotLocal : Quaternion.Slerp(Quaternion.identity, rotLocal, w);
+                p = centerLocal + q * (p - centerLocal);
+            }
+            else
+            {
+                Vector3 f   = (w >= 0.999f) ? scaleFac : Vector3.Lerp(Vector3.one, scaleFac, w);
+                Vector3 loc = Quaternion.Inverse(frameLocal) * (p - centerLocal);
+                loc = new Vector3(loc.x * f.x, loc.y * f.y, loc.z * f.z);
+                p = centerLocal + frameLocal * loc;
+            }
+            pts[j] = p;
+        }
+
+        dirty = true;
+        Repaint();
+        return true;
+    }
+
+    static float SafeRatio(float a, float b) => (Mathf.Abs(b) > 1e-5f) ? a / b : 1f;
+
     // ── Custom 高度控制点 Scene 交互 ──
     void DrawCustomHeightHandles(Transform t)
     {
@@ -3669,10 +4027,11 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
             Vector3 wp = t.TransformPoint(customHeightPoints[i]);
             float   sz = HandleUtility.GetHandleSize(wp) * 0.1f;
 
-            // 影响范围圆环（在面所在平面上）
+            // 影响范围圆环（画在面的基准高度上：边界抬升后基准面不再是 y=0）
             float r = (i < customHeightRadii.Count) ? customHeightRadii[i] : 1f;
             Handles.color = new Color(1f, 0.4f, 0.9f, 0.35f);
-            Vector3 baseW = t.TransformPoint(new Vector3(customHeightPoints[i].x, 0f, customHeightPoints[i].z));
+            float baseY = EvalCustomBoundaryYSafe(customHeightPoints[i].x, customHeightPoints[i].z);
+            Vector3 baseW = t.TransformPoint(new Vector3(customHeightPoints[i].x, baseY, customHeightPoints[i].z));
             Handles.DrawWireDisc(baseW, t.up, r * t.lossyScale.x);
             // 从基面到高度点的竖线，直观显示抬升量
             Handles.color = new Color(1f, 0.4f, 0.9f, 0.9f);
@@ -3716,6 +4075,7 @@ Shader ""Hidden/VFXMeshGen_TwoSide"" {
             checkerMat.SetFloat("_UVChannel", target);
             SceneView.RepaintAll();
         }
+        PushPreviewTile(target > 0.5f);   // 通道切换后预览平铺跟着换成该通道的值
     }
 }
 

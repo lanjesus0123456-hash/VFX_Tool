@@ -1,0 +1,36 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.9.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片、破碎与模块化地刺工具：支持Spline数据保存读取、可继续编辑的多路径预设与FBX导出",
+  "keywords": [
+    "vfx",
+    "mesh",
+    "generator",
+    "editor",
+    "noise",
+    "tornado",
+    "polar",
+    "sculpt",
+    "spline",
+    "uv-tiling",
+    "multi-spline",
+    "spline-preset",
+    "helix-profile",
+    "irregular-edge",
+    "fracture",
+    "shards",
+    "fbx",
+    "ground-spike",
+    "growth",
+    "animation"
+  ],
+  "author": {
+    "name": "Jesus"
+  },
+  "dependencies": {
+    "com.unity.formats.fbx": "2.0.3-preview.3"
+  }
+}

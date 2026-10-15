@@ -1,0 +1,29 @@
+{
+  "name": "com.vfxtools.meshgenerator",
+  "displayName": "VFX Mesh Generator",
+  "version": "1.7.0",
+  "type": "tool",
+  "unity": "2019.4",
+  "description": "VFX特效面片与破碎工具：多Spline、Helix轮廓、Custom不规则边缘，以及连续表面分片、碎片厚度、独立轴点和多节点FBX导出",
+  "keywords": [
+    "vfx",
+    "mesh",
+    "generator",
+    "editor",
+    "noise",
+    "tornado",
+    "polar",
+    "sculpt",
+    "spline",
+    "uv-tiling",
+    "multi-spline",
+    "helix-profile",
+    "irregular-edge",
+    "fracture",
+    "shards",
+    "fbx"
+  ],
+  "author": {
+    "name": "Jesus"
+  }
+}
